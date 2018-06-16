@@ -9,33 +9,29 @@ server.listen(process.env.PORT || 8080,function(){
 
 io.on('connection',function(socket){
 
-    socket.on('create or join', function (room) { 
-        var myRoom = io.sockets.adapter.rooms[room] || { length: 0 };
-        var numClients = myRoom.length;        
-        if (numClients == 0) {
-            socket.join(room);
-            socket.emit('created');
-        } else if (numClients == 1) {
-            socket.join(room);
-            socket.emit('joined', room);
-        } else {
-            console.log("Limited to only 2 connections/room");
-        }
+    socket.emit('giveID',socket.id);
+
+    socket.on('create', function (masterID) {
+        io.to(masterID).emit('created',socket.id);
     });
 
-    socket.on('ready', function (room){
-        socket.broadcast.to(room).emit('createOffer',room);
+    socket.on('join', function (creatorID) {
+        io.to(creatorID).emit('joined',socket.id);
+    });
+
+    socket.on('ready', function (masterID){
+        io.to(masterID).emit('createOffer',socket.id);
     });
 
     socket.on('offer', function(event){
-        socket.broadcast.to(event.room).emit('sendOffer',event);
+        io.to(event.creatorID).emit('sendOffer',{offer:event.offer, id:socket.id});
     });
 
     socket.on('answer', function(event){
-        socket.broadcast.to(event.room).emit('sendAnswer',event.answer);
+        io.to(event.masterID).emit('sendAnswer',{answer:event.answer, id:socket.id});
     });
 
     socket.on('candidate', function (event){
-        socket.broadcast.to(event.room).emit('candidate', event);
+        io.to(event.socketID).emit('candidate', {event:event, id:socket.id});
     });
 });
