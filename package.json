@@ -1,15 +1,12 @@
 {
-  "name": "webrtcnameserver",
+  "name": "WebRTCNameServer",
   "version": "1.0.0",
-  "description": "WebRTC Signalling Server",
+  "description": "A Name Server for WebRTC Master-Client configuration",
   "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Anto Christopher",
+  "repository": "https://github.com/anto-christo/WebRTCNameServer.git",
+  "author": "anto-christo <anto.christo.20@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.16.3",
-    "socket.io": "^2.1.1"
+    "frappejs": "^0.0.7"
   }
 }
