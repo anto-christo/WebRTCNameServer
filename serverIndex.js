@@ -21,6 +21,18 @@ require.extensions['.html'] = function (module, filename) {
     module.exports = fs.readFileSync(filename, 'utf8');
 };
 
+function generateKey() { // Public Domain/MIT
+    var d = new Date().getTime();
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function'){
+        d += performance.now(); //use high-precision timer if available
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+}
+
 module.exports = {
     async start({backend, connectionParams, models, staticPath = './', authConfig=null}) {
         await this.init();
@@ -49,6 +61,41 @@ module.exports = {
         // socketio
         io.on('connection', function (socket) {
             frappe.db.bindSocketServer(socket);
+
+            socket.on('startServer', function(event){
+                console.log(event);
+                frappe.getDoc('ServerInfo', event.name).then(serverInfo => {
+                    console.log(serverInfo);
+                    if(serverInfo!=undefined){
+                        if(serverInfo.name == event.name && serverInfo.serverKey == event.key){
+                            serverInfo.socketID = event.socketID;
+                            serverInfo.update().then(doc => {
+                                io.to(event.socketID).emit('serverResponse',{res:'success', socketID:event.socketID});
+                            });
+                        }
+                        else if(event.key==undefined){
+                            io.to(event.socketID).emit('serverResponse',{res:'exists', socketID:event.socketID});
+                        }
+                        else{
+                            io.to(event.socketID).emit('serverResponse',{res:'incorrect', socketID:event.socketID});
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    var key = generateKey();
+                    var newServerInfo = frappe.newDoc({
+                        doctype: 'ServerInfo',
+                        name: event.name,
+                        socketID: event.socketID,
+                        serverKey: key
+                    });
+                    newServerInfo.insert().then(doc => {
+                        io.to(event.socketID).emit('serverResponse',{res:'new', socketID:event.socketID, name:event.name, key:key});
+                    });
+                });
+            });
+
             socket.emit('giveID',socket.id);
 
             socket.on('create', function (masterID) {
@@ -113,3 +160,4 @@ module.exports = {
         app.all("/api/resource/*", auth.authenticate());
     }
 }
+
