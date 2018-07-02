@@ -70,14 +70,14 @@ module.exports = {
                         if(serverInfo.name == event.name && serverInfo.serverKey == event.key){
                             serverInfo.socketID = event.socketID;
                             serverInfo.update().then(doc => {
-                                io.to(event.socketID).emit('serverResponse',{res:'success', socketID:event.socketID});
+                                io.to(event.socketID).emit('serverResponse',{res:'success'});
                             });
                         }
                         else if(event.key==undefined){
-                            io.to(event.socketID).emit('serverResponse',{res:'exists', socketID:event.socketID});
+                            io.to(event.socketID).emit('serverResponse',{res:'exists'});
                         }
                         else{
-                            io.to(event.socketID).emit('serverResponse',{res:'incorrect', socketID:event.socketID});
+                            io.to(event.socketID).emit('serverResponse',{res:'incorrect'});
                         }
                     }
                 })
@@ -91,15 +91,20 @@ module.exports = {
                         serverKey: key
                     });
                     newServerInfo.insert().then(doc => {
-                        io.to(event.socketID).emit('serverResponse',{res:'new', socketID:event.socketID, name:event.name, key:key});
+                        io.to(event.socketID).emit('serverResponse',{res:'new', name:event.name, key:key});
                     });
                 });
             });
 
             socket.emit('giveID',socket.id);
 
-            socket.on('create', function (masterID) {
-                io.to(masterID).emit('created',socket.id);
+            socket.on('create', function (name) {
+                frappe.getDoc('ServerInfo', name).then(serverInfo => {
+                    io.to(serverInfo.socketID).emit('created',socket.id);
+                })
+                .catch(error => {
+                    io.to(socket.id).emit('created','fail');
+                });
             });
         
             socket.on('join', function (creatorID) {
