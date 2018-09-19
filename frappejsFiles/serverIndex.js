@@ -63,23 +63,34 @@ module.exports = {
             frappe.db.bindSocketServer(socket);
             console.log('connected');
             socket.on('startServer', function (event) {
-                console.log("Start server called");
+                console.log("Start server called", event.name);
                 frappe.getDoc('ServerInfo', event.name).then(serverInfo => {
-                        if (serverInfo.name == event.name && serverInfo.serverKey == event.key) {
-                            serverInfo.socketID = event.socketID;
-                            serverInfo.update().then(doc => {
-                                io.to(event.socketID).emit('serverResponse', {
-                                    res: 'started'
-                                });
-                            });
-                        } else if (event.key == undefined) {
+                    if (serverInfo.name == event.name && serverInfo.serverKey == event.key) {
+                        serverInfo.socketID = event.socketID;
+                        serverInfo.update().then(doc => {
                             io.to(event.socketID).emit('serverResponse', {
-                                res: 'exists'
+                                res: 'started'
                             });
-                        }
-                    })
-                    .catch(error => {
-                        console.log(error);
+                        });
+                    } else if (!event.key) {
+                        io.to(event.socketID).emit('serverResponse', {
+                            res: 'exists'
+                        });
+                    } else {
+                        io.to(event.socketID).emit('serverResponse', {
+                            res: 'incorrect'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    console.log(event.key);
+                    if(event.key) {
+                        io.to(event.socketID).emit('serverResponse', {
+                            res: 'incorrect'
+                        });
+                    }
+                    else {
                         var key = generateKey();
                         var newServerInfo = frappe.newDoc({
                             doctype: 'ServerInfo',
@@ -94,25 +105,26 @@ module.exports = {
                                 key: key
                             });
                         });
-                    });
+                    }
+                });
             });
 
             socket.on('stopServer', function (event) {
                 console.log("Stop server called");
                 frappe.getDoc('ServerInfo', event.name).then(serverInfo => {
-                        serverInfo.socketID = null;
-                        serverInfo.update().then(doc => {
-                            io.to(event.socketID).emit('serverResponse', {
-                                res: 'stopped'
-                            });
-                        });
-                    })
-                    .catch(error => {
-                        console.log("error");
+                    serverInfo.socketID = null;
+                    serverInfo.update().then(doc => {
                         io.to(event.socketID).emit('serverResponse', {
-                            res: 'incorrect'
+                            res: 'stopped'
                         });
                     });
+                })
+                .catch(error => {
+                    console.log("error");
+                    io.to(event.socketID).emit('serverResponse', {
+                        res: 'incorrect'
+                    });
+                });
             });
 
             socket.emit('giveID', socket.id);
